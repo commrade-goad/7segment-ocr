@@ -9,10 +9,6 @@ import torch.nn as nn
 from torchvision import transforms
 from PIL import Image, ImageOps
 
-# ==========================================
-# CRNN Setup (copied/adapted from your code)
-# ==========================================
-
 # Get Numeric Only
 ALPHABET = "0123456789-."
 BLANK = "<BLANK>"
@@ -211,16 +207,16 @@ def home_page():
     st.title("🗿 Welcome to 7-Segment LCD OCR")
     st.markdown("""
     ### About This Application
-    
-    This application uses a **CRNN (Convolutional Recurrent Neural Network)** model to perform 
+
+    This application uses a **CRNN (Convolutional Recurrent Neural Network)** model to perform
     Optical Character Recognition (OCR) on 7-segment LCD displays.
-    
+
     #### Features:
     - **Character Recognition**: Recognizes digits (0-9), decimal points (.), and minus signs (-)
     - **Deep Learning Model**: Utilizes a CRNN architecture with CTC decoding
     - **Preprocessing Pipeline**: Automatic grayscale conversion, contrast adjustment, and normalization
     - **Device Support**: Runs on CPU, CUDA (NVIDIA GPU), or MPS (Apple Silicon)
-    
+
     #### How It Works:
     1. **Upload** an image containing a 7-segment LCD display
     2. The image is **preprocessed** (grayscale, autocontrast, resize, padding)
@@ -229,12 +225,12 @@ def home_page():
        - Recurrent layers (GRU) for sequence modeling
        - CTC decoding for text output
     4. The recognized **text is displayed** alongside the original and preprocessed images
-    
+
     #### Getting Started:
     Navigate to the **"Model Interface"** page using the sidebar to start recognizing text from your images!
-    
+
     ---
-    
+
     **Supported Alphabet**: `0123456789-.`
     """)
 
@@ -244,12 +240,13 @@ def model_interface():
     st.title(name)
     st.caption("Upload an image and run OCR using a CRNN model with greedy CTC decoding. Alphabet: 0-9, '-', '.'")
 
-    with st.sidebar:
-        st.header("Model")
-        device_choice = st.selectbox("Device", options=["Auto", "CPU", "CUDA", "MPS"], index=0)
-        st.markdown("- The app automatically loads a .pt/.pth model from the current directory.")
+    # with st.sidebar:
+    #     st.header("Model")
+    #     device_choice = st.selectbox("Device", options=["Auto", "CPU", "CUDA", "MPS"], index=0)
+    #     st.markdown("- The app automatically loads a .pt/.pth model from the current directory.")
 
     # Device selection
+    device_choice = "Auto"
     if device_choice == "Auto":
         device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
     elif device_choice == "CUDA":
@@ -301,7 +298,6 @@ def model_interface():
     else:
         st.info("Upload an image to start OCR.")
 
-
 # Navigation
 page = st.sidebar.radio("Navigation", options=["Home", "Model Interface"])
 
@@ -309,14 +305,3 @@ if page == "Home":
     home_page()
 elif page == "Model Interface":
     model_interface()
-
-
-# Optional: simple function API similar to your snippet
-def predict_image_bytes(image_bytes: bytes) -> str:
-    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    # Note: This function requires model and device to be available in the scope
-    # For API usage, you would need to load the model separately
-    weights_path = _find_weights_path()
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = load_model_from_path(weights_path, device)
-    return predict_image(img, model, device)
