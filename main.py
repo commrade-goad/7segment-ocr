@@ -9,10 +9,6 @@ import torch.nn as nn
 from torchvision import transforms
 from PIL import Image, ImageOps
 
-# ==========================================
-# CRNN Setup (copied/adapted from your code)
-# ==========================================
-
 # Get Numeric Only
 ALPHABET = "0123456789-."
 BLANK = "<BLANK>"
@@ -205,68 +201,107 @@ name = "CRNN OCR (7Segments digit OCR)"
 
 st.set_page_config(page_title=name, page_icon="🗿", layout="centered")
 
-st.title(name)
-st.caption("Upload an image and run OCR using a CRNN model with greedy CTC decoding. Alphabet: 0-9, '-', '.'")
 
-with st.sidebar:
-    st.header("Model")
-    device_choice = st.selectbox("Device", options=["Auto", "CPU", "CUDA", "MPS"], index=0)
-    st.markdown("- The app automatically loads a .pt/.pth model from the current directory.")
+def home_page():
+    """Display the homepage with app description."""
+    st.title("🗿 Welcome to 7-Segment LCD OCR")
+    st.markdown("""
+    ### About This Application
 
-# Device selection
-if device_choice == "Auto":
-    device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
-elif device_choice == "CUDA":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-elif device_choice == "MPS":
-    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-else:
-    device = torch.device("cpu")
+    This application uses a **CRNN (Convolutional Recurrent Neural Network)** model to perform
+    Optical Character Recognition (OCR) on 7-segment LCD displays.
 
-# Load model (cached) from current directory
-try:
-    weights_path = _find_weights_path()
-    model = load_model_from_path(weights_path, device)
-    st.sidebar.success(f"Loaded weights: {weights_path}")
-except Exception as e:
-    st.sidebar.error(f"Error loading weights: {e}")
-    st.stop()
+    #### Features:
+    - **Character Recognition**: Recognizes digits (0-9), decimal points (.), and minus signs (-)
+    - **Deep Learning Model**: Utilizes a CRNN architecture with CTC decoding
+    - **Preprocessing Pipeline**: Automatic grayscale conversion, contrast adjustment, and normalization
+    - **Device Support**: Runs on CPU, CUDA (NVIDIA GPU), or MPS (Apple Silicon)
 
-st.subheader("Upload Image")
-img_file = st.file_uploader("Choose an image file", type=["png", "jpg", "jpeg", "bmp", "tiff", "webp"])
+    #### How It Works:
+    1. **Upload** an image containing a 7-segment LCD display
+    2. The image is **preprocessed** (grayscale, autocontrast, resize, padding)
+    3. The **CRNN model** processes the image through:
+       - Convolutional layers for feature extraction
+       - Recurrent layers (GRU) for sequence modeling
+       - CTC decoding for text output
+    4. The recognized **text is displayed** alongside the original and preprocessed images
 
-if img_file:
+    #### Getting Started:
+    Navigate to the **"Model Interface"** page using the sidebar to start recognizing text from your images!
+
+    ---
+
+    **Supported Alphabet**: `0123456789-.`
+    """)
+
+
+def model_interface():
+    """Display the OCR model interface for image upload and prediction."""
+    st.title(name)
+    st.caption("Upload an image and run OCR using a CRNN model with greedy CTC decoding. Alphabet: 0-9, '-', '.'")
+
+    # with st.sidebar:
+    #     st.header("Model")
+    #     device_choice = st.selectbox("Device", options=["Auto", "CPU", "CUDA", "MPS"], index=0)
+    #     st.markdown("- The app automatically loads a .pt/.pth model from the current directory.")
+
+    # Device selection
+    device_choice = "Auto"
+    if device_choice == "Auto":
+        device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
+    elif device_choice == "CUDA":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    elif device_choice == "MPS":
+        device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    else:
+        device = torch.device("cpu")
+
+    # Load model (cached) from current directory
     try:
-        img = Image.open(img_file).convert("RGB")
+        weights_path = _find_weights_path()
+        model = load_model_from_path(weights_path, device)
+        st.sidebar.success(f"Loaded weights: {weights_path}")
     except Exception as e:
-        st.error(f"Failed to open image: {e}")
+        st.sidebar.error(f"Error loading weights: {e}")
         st.stop()
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.image(img, caption="Original", use_container_width=True)
+    st.subheader("Upload Image")
+    img_file = st.file_uploader("Choose an image file", type=["png", "jpg", "jpeg", "bmp", "tiff", "webp"])
 
-    with st.spinner("Running OCR..."):
+    if img_file:
         try:
-            text = predict_image(img, model, device)
+            img = Image.open(img_file).convert("RGB")
         except Exception as e:
-            st.error(f"Inference error: {e}")
+            st.error(f"Failed to open image: {e}")
             st.stop()
 
-    with col2:
-        # Show preprocessed image
-        pre_img = transform_pipeline.transforms[0](img)  # Grayscale
-        pre_img = transform_pipeline.transforms[1](pre_img)  # Autocontrast
-        pre_img = transform_pipeline.transforms[2](pre_img)  # Resize
-        pre_img = transform_pipeline.transforms[3](pre_img)  # Pad to width
-        st.image(pre_img, caption="Preprocessed (H≈64, padded to W≈192)", use_container_width=True, clamp=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.image(img, caption="Original", use_container_width=True)
 
-    st.success(f"Predicted text: {text}")
-else:
-    st.info("Upload an image to start OCR.")
+        with st.spinner("Running OCR..."):
+            try:
+                text = predict_image(img, model, device)
+            except Exception as e:
+                st.error(f"Inference error: {e}")
+                st.stop()
 
+        with col2:
+            # Show preprocessed image
+            pre_img = transform_pipeline.transforms[0](img)  # Grayscale
+            pre_img = transform_pipeline.transforms[1](pre_img)  # Autocontrast
+            pre_img = transform_pipeline.transforms[2](pre_img)  # Resize
+            pre_img = transform_pipeline.transforms[3](pre_img)  # Pad to width
+            st.image(pre_img, caption="Preprocessed (H≈64, padded to W≈192)", use_container_width=True, clamp=True)
 
-# Optional: simple function API similar to your snippet
-def predict_image_bytes(image_bytes: bytes) -> str:
-    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    return predict_image(img, model, device)
+        st.success(f"Predicted text: {text}")
+    else:
+        st.info("Upload an image to start OCR.")
+
+# Navigation
+page = st.sidebar.radio("Navigation", options=["Home", "Model Interface"])
+
+if page == "Home":
+    home_page()
+elif page == "Model Interface":
+    model_interface()
